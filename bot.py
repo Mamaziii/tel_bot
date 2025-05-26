@@ -89,4 +89,4 @@ def handle_media(message):
 def start_message(message):
     bot.reply_to(message, "🎶 سلام! ویس یا ویدیو بفرست تا آهنگشو پیدا کنم.")
 
-#bot.infinity_polling()
+bot.infinity_polling()
