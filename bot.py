@@ -13,8 +13,22 @@ def welcome(message):
 def search_melobit(message):
     query = message.text
     try:
-        res = requests.get(f"https://www.melobit.com/search/query/{query}")
-        json_data = res.json()
+        url = f"https://www.melobit.com/search/query/{query}"
+        res = requests.get(url)
+
+        if res.status_code != 200:
+            bot.send_message(message.chat.id, f"خطا در اتصال به Melobit ❌\nوضعیت: {res.status_code}")
+            return
+
+        if not res.text.strip():
+            bot.send_message(message.chat.id, "پاسخ خالی از سرور دریافت شد ❌")
+            return
+
+        try:
+            json_data = res.json()
+        except Exception as e:
+            bot.send_message(message.chat.id, f"خطا در تبدیل پاسخ به JSON ❌\n{e}")
+            return
 
         if not json_data.get("songs"):
             bot.send_message(message.chat.id, "متأسفم، چیزی پیدا نکردم ❌")
