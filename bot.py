@@ -6,7 +6,9 @@ TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 HEADERS = {
-    "User-Agent": "MelobitAndroid/4.2.2 (com.melobit.app; build:95; Android 11)"
+    "User-Agent": "okhttp/4.2.2",
+    "Accept": "application/json",
+    "Connection": "keep-alive"
 }
 
 @bot.message_handler(commands=['start'])
