@@ -5,6 +5,10 @@ import telebot
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
+HEADERS = {
+    "User-Agent": "MelobitApp/5.0.3 (Android 11; SDK 30)"
+}
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
     bot.send_message(message.chat.id, "سلام! اسم آهنگ یا خواننده رو بفرست تا فایل کاملشو بفرستم 🎵")
@@ -13,28 +17,20 @@ def welcome(message):
 def search_melobit(message):
     query = message.text
     try:
-        url = f"https://www.melobit.com/search/query/{query}"
-        res = requests.get(url)
+        url = f"https://melobit.com/api/v1/search/query/{query}"
+        res = requests.get(url, headers=HEADERS)
 
         if res.status_code != 200:
             bot.send_message(message.chat.id, f"خطا در اتصال به Melobit ❌\nوضعیت: {res.status_code}")
             return
 
-        if not res.text.strip():
-            bot.send_message(message.chat.id, "پاسخ خالی از سرور دریافت شد ❌")
+        data = res.json()
+        songs = data.get("songs")
+        if not songs:
+            bot.send_message(message.chat.id, "آهنگی پیدا نشد ❌")
             return
 
-        try:
-            json_data = res.json()
-        except Exception as e:
-            bot.send_message(message.chat.id, f"خطا در تبدیل پاسخ به JSON ❌\n{e}")
-            return
-
-        if not json_data.get("songs"):
-            bot.send_message(message.chat.id, "متأسفم، چیزی پیدا نکردم ❌")
-            return
-
-        song = json_data["songs"][0]
+        song = songs[0]
         title = song["title"]
         artist = song["artists"][0]["fullName"]
         audio_url = song["audio"]["high"]["url"]
