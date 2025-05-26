@@ -1,6 +1,8 @@
 import os
 import requests
 import telebot
+import subprocess
+from telebot import types
 
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
@@ -8,54 +10,48 @@ SHZ_HOST = os.getenv("SHZ_HOST")
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=["start"])
-def start(message):
-    bot.send_message(message.chat.id, "سلام! لطفاً وویس یا ویدیو بفرست تا آهنگشو پیدا کنم 🎵")
+def convert_to_mp3(input_file, output_file):
+    subprocess.run(["ffmpeg", "-y", "-i", input_file, output_file])
 
-@bot.message_handler(content_types=['voice', 'video', 'audio'])
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "سلام! یه ویس یا ویدیو بفرست تا شازمش کنم 🎵")
+
+@bot.message_handler(content_types=['voice', 'audio', 'video'])
 def handle_audio(message):
     try:
-        file_id = (
-            message.voice.file_id if message.voice else
-            message.video.file_id if message.video else
-            message.audio.file_id
-        )
-        file_info = bot.get_file(file_id)
-        file = bot.download_file(file_info.file_path)
+        file_info = bot.get_file(message.voice.file_id if message.voice else message.video.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
 
-        with open("voice.mp3", "wb") as f:
-            f.write(file)
+        input_ext = '.ogg' if message.voice else '.mp4'
+        input_file = "input" + input_ext
+        output_file = "voice.mp3"
 
-        with open("voice.mp3", "rb") as audio_file:
-            audio_bytes = audio_file.read()
+        with open(input_file, 'wb') as f:
+            f.write(downloaded_file)
 
-        headers = {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": SHZ_HOST,
-            "Content-Type": "text/plain"
-        }
+        convert_to_mp3(input_file, output_file)
 
-        response = requests.post(
-            f"https://{SHZ_HOST}/songs/v2/detect",
-            headers=headers,
-            data=audio_bytes
-        )
+        # Send file to Shazam API
+        with open(output_file, 'rb') as f:
+            files = {'file': f}
+            headers = {
+                "X-RapidAPI-Key": RAPIDAPI_KEY,
+                "X-RapidAPI-Host": SHZ_HOST
+            }
+            response = requests.post("https://shazam.p.rapidapi.com/songs/detect", files=files, headers=headers)
 
         result = response.json()
 
-        if 'track' not in result:
-            bot.send_message(message.chat.id, "متأسفم، Shazam نتونست این آهنگ رو شناسایی کنه ❌")
-            return
-
-        track = result["track"]
-        title = track.get("title", "")
-        subtitle = track.get("subtitle", "")
-        url = track.get("url", "")
-
-        msg = f"🎶 {title} - {subtitle}\n🌐 {url}"
-        bot.send_message(message.chat.id, msg)
+        if 'track' in result:
+            title = result['track']['title']
+            subtitle = result['track']['subtitle']
+            url = result['track']['url']
+            bot.reply_to(message, f"✅ آهنگ شناسایی شد:\n🎵 {title} - {subtitle}\n🌐 {url}")
+        else:
+            bot.reply_to(message, "❌ متأسفم، Shazam نتونست این آهنگ رو شناسایی کنه.")
 
     except Exception as e:
-        bot.send_message(message.chat.id, f"مشکلی در تماس با Shazam پیش اومد.\n{e}")
+        bot.reply_to(message, f"❌ مشکلی پیش اومد:\n{e}")
 
 bot.infinity_polling()
