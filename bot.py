@@ -98,4 +98,4 @@ def handle_audio(message):
         bot.send_message(message.chat.id, f"خطا در پردازش: {e}")
 
 # ================= Start Bot =================
-bot.infinity_polling()
+#bot.infinity_polling()
