@@ -6,7 +6,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 HEADERS = {
-    "User-Agent": "MelobitApp/5.0.3 (Android 11; SDK 30)"
+    "User-Agent": "MelobitAndroid/4.2.2 (com.melobit.app; build:95; Android 11)"
 }
 
 @bot.message_handler(commands=['start'])
@@ -15,7 +15,7 @@ def welcome(message):
 
 @bot.message_handler(content_types=['text'])
 def search_melobit(message):
-    query = message.text
+    query = message.text.strip()
     try:
         url = f"https://melobit.com/api/v1/search/query/{query}"
         res = requests.get(url, headers=HEADERS)
