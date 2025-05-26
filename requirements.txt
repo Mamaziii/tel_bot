@@ -1,5 +1,2 @@
-pyTelegramBotAPI
-shazamio
-aiohttp
+pyTelegramBotAPI==4.13.0
 requests
-python-dotenv
