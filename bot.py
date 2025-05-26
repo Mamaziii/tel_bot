@@ -1,16 +1,12 @@
 import os
 import requests
 import telebot
-import subprocess
 
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 SHZ_HOST = os.getenv("SHZ_HOST")
 
 bot = telebot.TeleBot(TOKEN)
-
-def convert_to_wav(input_file, output_file="voice.wav"):
-    subprocess.run(["ffmpeg", "-y", "-i", input_file, "-ar", "44100", "-ac", "2", output_file])
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -27,12 +23,10 @@ def handle_audio(message):
         file_info = bot.get_file(file_id)
         file = bot.download_file(file_info.file_path)
 
-        with open("voice.ogg", "wb") as f:
+        with open("voice.mp3", "wb") as f:
             f.write(file)
 
-        convert_to_wav("voice.ogg", "voice.wav")
-
-        with open("voice.wav", "rb") as audio_file:
+        with open("voice.mp3", "rb") as audio_file:
             audio_bytes = audio_file.read()
 
         headers = {
