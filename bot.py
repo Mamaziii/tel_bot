@@ -1,65 +1,64 @@
 import os
 import requests
 import telebot
+import subprocess
 
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST")
+SHZ_HOST = os.getenv("SHZ_HOST")
 
 bot = telebot.TeleBot(TOKEN)
 
-HEADERS = {
-    "X-RapidAPI-Key": RAPIDAPI_KEY,
-    "X-RapidAPI-Host": RAPIDAPI_HOST
-}
+# تبدیل فایل صوتی به wav (برای ارسال به Shazam)
+def convert_to_wav(input_file, output_file="voice.wav"):
+    subprocess.run(["ffmpeg", "-y", "-i", input_file, "-ar", "44100", "-ac", "2", output_file])
 
-@bot.message_handler(commands=['start'])
-def start_handler(message):
-    bot.send_message(message.chat.id, "سلام! ویس یا اسم آهنگ بفرست تا پیداش کنم 🎶")
+@bot.message_handler(commands=["start"])
+def start(message):
+    bot.send_message(message.chat.id, "سلام! یه وویس یا ویدیو بفرست تا آهنگشو پیدا کنم 🎧")
 
-# Step 1: Voice or Video Handler
-@bot.message_handler(content_types=['voice', 'video'])
-def handle_audio(message):
-    file_info = bot.get_file(message.voice.file_id if message.voice else message.video.file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
-
-    with open("sample.ogg", 'wb') as f:
-        f.write(downloaded_file)
-
-    # Convert to MP3 using ffmpeg (assume it's installed)
-    os.system("ffmpeg -i sample.ogg voice.mp3 -y")
-
-    with open("voice.mp3", 'rb') as f:
-        files = {'file': f}
-        try:
-            response = requests.post("https://shazam.p.rapidapi.com/songs/v2/detect", 
-                                     headers=HEADERS, files=files)
-            data = response.json()
-
-            title = data['track']['title']
-            artist = data['track']['subtitle']
-
-            bot.send_message(message.chat.id, f"🎵 پیدا شد: {title} - {artist}\nدر حال جست‌وجوی فایل...")
-
-            search_and_send_mp3(message.chat.id, f"{title} {artist}")
-
-        except Exception as e:
-            bot.send_message(message.chat.id, f"مشکلی در تماس با Shazam پیش اومد.\n{e}")
-
-# Step 2: Search in MP3Juices API and send file
-
-def search_and_send_mp3(chat_id, query):
+@bot.message_handler(content_types=['voice', 'audio', 'video', 'document'])
+def handle_media(message):
     try:
-        res = requests.get(f"https://api-mp3juices.yt/api/search.php?q={query}&page=1")
-        results = res.json()
+        file_info = bot.get_file(message.voice.file_id if message.voice else message.audio.file_id if message.audio else message.video.file_id if message.video else message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
 
-        if results and results.get("data"):
-            audio_url = results['data'][0]['url']
-            title = results['data'][0]['title']
-            bot.send_audio(chat_id, audio=audio_url, caption=f"🎶 {title}")
-        else:
-            bot.send_message(chat_id, "آهنگ پیدا نشد ❌")
+        with open("voice.ogg", 'wb') as new_file:
+            new_file.write(downloaded_file)
+
+        convert_to_wav("voice.ogg", "voice.wav")
+
+        with open("voice.wav", "rb") as f:
+            data = f.read()
+
+        headers = {
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": SHZ_HOST,
+            "content-type": "text/plain"
+        }
+
+        response = requests.post(
+            f"https://{SHZ_HOST}/songs/v2/detect",
+            headers=headers,
+            data=data
+        )
+
+        result = response.json()
+
+        # ✅ بررسی اینکه آیا track پیدا شده یا نه
+        if 'track' not in result:
+            bot.send_message(message.chat.id, "متأسفم، Shazam نتونست این آهنگ رو شناسایی کنه ❌")
+            return
+
+        track = result['track']
+        title = track.get('title', 'نامشخص')
+        subtitle = track.get('subtitle', '')
+        url = track.get('url', 'بدون لینک')
+
+        msg = f"🎶 {title} - {subtitle}\n🌐 {url}"
+        bot.send_message(message.chat.id, msg)
+
     except Exception as e:
-        bot.send_message(chat_id, f"خطا در جست‌وجو یا ارسال فایل:\n{e}")
+        bot.send_message(message.chat.id, f"خطا در پردازش: {e}")
 
 bot.infinity_polling()
