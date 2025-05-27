@@ -12,6 +12,10 @@ bot = telebot.TeleBot(TOKEN)
 
 def convert_to_mp3(input_file, output_file):
     subprocess.run(["ffmpeg", "-y", "-i", input_file, output_file])
+    if not os.path.exists(output_file) or os.path.getsize(output_file) < 1000:
+    bot.reply_to(message, "⚠️ تبدیل به mp3 موفق نبود یا فایل خالیه.")
+    return
+
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -40,6 +44,10 @@ def handle_audio(message):
                 "X-RapidAPI-Host": SHZ_HOST
             }
             response = requests.post("https://shazam.p.rapidapi.com/songs/detect", files=files, headers=headers)
+            if response.status_code != 200:
+    bot.reply_to(message, f"❌ Shazam پاسخ نداد. وضعیت: {response.status_code}")
+    return
+
 
         result = response.json()
 
