@@ -11,7 +11,7 @@ AUDD_KEY = os.getenv("AUDD_API_KEY")
 # Telethon credentials
 API_ID = int(os.getenv("API_ID"))         # از my.telegram.org بگیر
 API_HASH = os.getenv("API_HASH")          # از my.telegram.org بگیر
-MUSIC_CHANNEL = "AhangeJadid"             # کانال عمومی‌ای که آهنگ‌ها توشه
+MUSIC_CHANNEL = "@soundcloudclub"             # کانال عمومی‌ای که آهنگ‌ها توشه
 
 # TeleBot
 bot = telebot.TeleBot(TOKEN)
