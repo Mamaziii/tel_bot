@@ -1,48 +1,49 @@
 import os
 import requests
 import telebot
+import asyncio
 from telethon.sync import TelegramClient
 from telethon.tl.types import InputMessagesFilterDocument
 
+# ENV config
 TOKEN = os.getenv("BOT_TOKEN")
-AUDIO_TEMP_FILE = "temp_song.mp3"
-
-# AudD API
 AUDD_API_KEY = os.getenv("AUDD_API_KEY")
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+SESSION_NAME = "music_session"
+CHANNEL_USERNAME = "soundcloudclub"  # ← آیدی کانال بدون @
 
-# Telethon credentials
-api_id = int(os.getenv("API_ID"))
-api_hash = os.getenv("API_HASH")
-client = TelegramClient("music_session", api_id, api_hash)
-client.start()
-
+AUDIO_TEMP_FILE = "temp_song.mp3"
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=["start"])
 def welcome(message):
-    bot.reply_to(message, "سلام! ویس یا ویدیو بفرست تا موزیکشو پیدا کنم 🎧 یا دستور /latest رو بفرست تا آخرین آهنگ کانال رو بفرستم!")
+    bot.reply_to(message, "سلام! یه ویس یا ویدیو بفرست تا برات موزیک کاملش رو پیدا کنم 🎧")
 
 @bot.message_handler(commands=["latest"])
 def send_latest_song(message):
     try:
-        msgs = client.get_messages('soundcloudclub', limit=1, filter=InputMessagesFilterDocument)
-        if not msgs:
-            bot.reply_to(message, "❌ فایل جدیدی پیدا نشد.")
+        result = asyncio.run(fetch_latest_song())
+        if not result:
+            bot.reply_to(message, "متأسفم، آهنگی پیدا نشد ❌")
             return
-
-        msg = msgs[0]
-        if not msg.document:
-            bot.reply_to(message, "❌ پیام آخر شامل فایل صوتی نیست.")
-            return
-
-        file_path = msg.download_media()
-        with open(file_path, 'rb') as f:
-            bot.send_audio(message.chat.id, f, caption="🎵 آخرین آهنگ از کانال MyMusicChannel")
-
+        title, file_path = result
+        with open(file_path, "rb") as audio:
+            bot.send_audio(message.chat.id, audio, caption=f"🎶 {title}")
         os.remove(file_path)
-
     except Exception as e:
-        bot.reply_to(message, f"❌ خطا در دریافت آهنگ: {e}")
+        bot.reply_to(message, f"خطا در دریافت آهنگ: {e}")
+
+async def fetch_latest_song():
+    async with TelegramClient(SESSION_NAME, API_ID, API_HASH) as client:
+        messages = await client.get_messages(CHANNEL_USERNAME, limit=1, filter=InputMessagesFilterDocument)
+        if not messages or not messages[0].file:
+            return None
+        msg = messages[0]
+        file_name = msg.file.name or "latest_song.mp3"
+        file_path = os.path.join(".", file_name)
+        await msg.download_media(file=file_path)
+        return file_name, file_path
 
 @bot.message_handler(content_types=["text"])
 def handle_text(message):
@@ -80,7 +81,7 @@ def handle_media(message):
         mp3_download_link = get_mp3_download_link(f"{title} {artist}")
 
         if not mp3_download_link:
-            bot.reply_to(message, f"✅ آهنگ شناسایی شد: {title} - {artist}\nلینک: {song_link}")
+            bot.reply_to(message, f"آهنگ شناسایی شد: {title} - {artist} 🎵\nولی نتونستم فایل رو بفرستم. لینک: {song_link}")
             return
 
         mp3_data = requests.get(mp3_download_link)
