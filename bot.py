@@ -25,7 +25,7 @@ def welcome(message):
 @bot.message_handler(commands=["latest"])
 def send_latest_song(message):
     try:
-        msgs = client.get_messages('bitrait_public', limit=1, filter=InputMessagesFilterDocument)
+        msgs = client.get_messages('soundcloudclub', limit=1, filter=InputMessagesFilterDocument)
         if not msgs:
             bot.reply_to(message, "❌ فایل جدیدی پیدا نشد.")
             return
