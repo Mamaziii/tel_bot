@@ -1,47 +1,50 @@
 import os
 import requests
 import telebot
-import asyncio
 from telethon.sync import TelegramClient
 from telethon.tl.types import InputMessagesFilterDocument
+import asyncio
 
 TOKEN = os.getenv("BOT_TOKEN")
-AUDD_API_KEY = os.getenv("AUDD_API_KEY")
+AUDIO_TEMP_FILE = "temp_song.mp3"
+CHANNEL_USERNAME = os.getenv("soundcloudclub")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-SESSION_NAME = "music_session"
-CHANNEL_USERNAME = "soundcloudclub"  # ← آیدی کانال آهنگ‌ها
 
-AUDIO_TEMP_FILE = "temp_song.mp3"
 bot = telebot.TeleBot(TOKEN)
+
+# بررسی و ساخت فولدر دانلود
+if not os.path.exists("downloads"):
+    os.makedirs("downloads")
 
 @bot.message_handler(commands=["start"])
 def welcome(message):
-    bot.reply_to(message, "سلام! یه ویس یا ویدیو بفرست یا اسم آهنگ رو تایپ کن تا برات موزیک کاملش رو بیارم 🎧")
+    bot.reply_to(message, "سلام! یه ویس، ویدیو یا اسم آهنگ بفرست تا برات موزیکشو پیدا کنم 🎧")
 
-@bot.message_handler(commands=["latest"])
-def send_latest_song(message):
-    try:
-        result = asyncio.run(fetch_latest_song())
-        if not result:
-            bot.reply_to(message, "❌ آهنگی پیدا نشد")
-            return
-        title, file_path = result
-        with open(file_path, "rb") as audio:
-            bot.send_audio(message.chat.id, audio, caption=f"🎶 {title}")
+@bot.message_handler(content_types=["text"])
+def handle_text(message):
+    query = message.text.strip()
+
+    # تلاش برای شناسایی از AudD
+    audd_result = search_with_audd(query)
+    if audd_result:
+        bot.reply_to(message, audd_result)
+        return
+
+    # اگر AudD پیدا نکرد => جستجو در کانال تلگرام
+    bot.reply_to(message, "🔎 در حال جستجو در کانال برای: " + query)
+
+    result = asyncio.run(search_in_channel(query))
+    if result and result.document:
+        file_name = result.document.attributes[0].file_name if result.document.attributes else "music.mp3"
+        file_path = f"downloads/{file_name}"
+        result.download_media(file_path)
+
+        with open(file_path, "rb") as f:
+            bot.send_audio(message.chat.id, f, caption=f"🎶 {file_name}")
         os.remove(file_path)
-    except Exception as e:
-        bot.reply_to(message, f"خطا در دریافت آهنگ: {e}")
-
-async def fetch_latest_song():
-    async with TelegramClient(SESSION_NAME, API_ID, API_HASH) as client:
-        messages = await client.get_messages(CHANNEL_USERNAME, limit=1, filter=InputMessagesFilterDocument)
-        if not messages or not messages[0].file:
-            return None
-        msg = messages[0]
-        file_name = msg.file.name or "latest_song.mp3"
-        await msg.download_media(file=file_name)
-        return file_name, file_name
+    else:
+        bot.reply_to(message, "متأسفم، آهنگ پیدا نشد ❌")
 
 @bot.message_handler(content_types=["voice", "video"])
 def handle_media(message):
@@ -57,14 +60,14 @@ def handle_media(message):
         with open(input_file, "rb") as f:
             files = {'file': f}
             data = {
-                'api_token': AUDD_API_KEY,
+                'api_token': os.getenv("AUDD_API_KEY"),
                 'return': 'apple_music,spotify',
             }
             response = requests.post("https://api.audd.io/", data=data, files=files)
             result = response.json()
 
         if not result.get("result") or not result["result"].get("song_link"):
-            bot.reply_to(message, "❌ نتونستم آهنگ رو شناسایی کنم")
+            bot.reply_to(message, "نتونستم آهنگ رو شناسایی کنم ❌")
             return
 
         song = result["result"]
@@ -74,7 +77,7 @@ def handle_media(message):
 
         mp3_download_link = get_mp3_download_link(f"{title} {artist}")
         if not mp3_download_link:
-            bot.reply_to(message, f"🎵 {title} - {artist}\nولی لینک فایل پیدا نشد: {song_link}")
+            bot.reply_to(message, f"آهنگ شناسایی شد: {title} - {artist} 🎵\nولی لینک دانلود نشد: {song_link}")
             return
 
         mp3_data = requests.get(mp3_download_link)
@@ -90,13 +93,10 @@ def handle_media(message):
     except Exception as e:
         bot.reply_to(message, f"خطا در پردازش: {e}")
 
-@bot.message_handler(content_types=["text"])
-def handle_text(message):
-    query = message.text.strip()
+def search_with_audd(query):
     try:
-        # جستجو در AudD
         data = {
-            'api_token': AUDD_API_KEY,
+            'api_token': os.getenv("AUDD_API_KEY"),
             'q': query,
             'return': 'apple_music,spotify',
         }
@@ -105,41 +105,25 @@ def handle_text(message):
 
         if result.get("result") and len(result["result"]) > 0:
             song = result["result"][0]
-            title = song["title"]
-            artist = song["artist"]
-            mp3_download_link = get_mp3_download_link(f"{title} {artist}")
-
-            if mp3_download_link:
-                mp3_data = requests.get(mp3_download_link)
-                with open(AUDIO_TEMP_FILE, "wb") as f:
-                    f.write(mp3_data.content)
-                with open(AUDIO_TEMP_FILE, "rb") as f:
-                    bot.send_audio(message.chat.id, f, caption=f"{title} - {artist} 🎶")
-                os.remove(AUDIO_TEMP_FILE)
-                return
-
-        # اگر AudD پیدا نکرد، جستجو در کانال عمومی
-        result = asyncio.run(search_in_channel(query))
-        if result:
-            title, file_path = result
-            with open(file_path, "rb") as audio:
-                bot.send_audio(message.chat.id, audio, caption=f"🎶 {title}")
-            os.remove(file_path)
-        else:
-            bot.reply_to(message, "❌ آهنگ پیدا نشد.")
-
-    except Exception as e:
-        bot.reply_to(message, f"خطا: {e}")
+            return f"🎵 آهنگ شناسایی شد:\n{song['title']} - {song['artist']}\nلینک: {song.get('song_link', 'نداره')}"
+    except:
+        pass
+    return None
 
 async def search_in_channel(query):
-    async with TelegramClient(SESSION_NAME, API_ID, API_HASH) as client:
-        messages = await client.get_messages(CHANNEL_USERNAME, limit=30, search=query, filter=InputMessagesFilterDocument)
-        if not messages:
-            return None
-        msg = messages[0]
-        file_name = msg.file.name or f"{query}.mp3"
-        await msg.download_media(file=file_name)
-        return query, file_name
+    try:
+        async with TelegramClient("music_session", API_ID, API_HASH) as client:
+            messages = await client.get_messages(
+                CHANNEL_USERNAME, 
+                limit=100, 
+                filter=InputMessagesFilterDocument
+            )
+            for msg in messages:
+                if msg.message and query.lower() in msg.message.lower():
+                    return msg
+    except Exception as e:
+        print(f"[❌] خطا در جستجوی کانال: {e}")
+    return None
 
 def get_mp3_download_link(query):
     try:
