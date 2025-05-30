@@ -10,7 +10,7 @@ AUDD_API_KEY = os.getenv("AUDD_API_KEY")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 SESSION_NAME = "music_session"
-CHANNEL_USERNAME = "lofimusicdaily"  # ← آیدی کانال آهنگ‌ها
+CHANNEL_USERNAME = "soundcloudclub"  # ← آیدی کانال آهنگ‌ها
 
 AUDIO_TEMP_FILE = "temp_song.mp3"
 bot = telebot.TeleBot(TOKEN)
