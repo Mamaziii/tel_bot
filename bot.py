@@ -8,7 +8,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 AUDD_API_KEY = os.getenv("AUDD_API_KEY")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-CHANNEL_USERNAME = "@your_channel_username"  # ← آیدی کانال عمومی
+CHANNEL_USERNAME = "@soundcloudclub"  # ← آیدی کانال عمومی
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
