@@ -1,111 +1,91 @@
 import os
 import requests
-import telebot
 from telethon.sync import TelegramClient
-from telethon.tl.types import InputMessagesFilterMusic
+from telethon.tl.types import Document
+from telebot import TeleBot, types
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-AUDD_API_KEY = os.getenv("AUDD_API_KEY")
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-CHANNEL_USERNAME = "@soundcloudclub"  # ← آیدی کانال عمومی
+# تلگرام بات
+bot_token = os.getenv("BOT_TOKEN")
+audd_api_key = os.getenv("AUDD_API_KEY")
+bot = TeleBot(bot_token)
 
-bot = telebot.TeleBot(BOT_TOKEN)
-
-# راه‌اندازی کلاینت Telethon
-telethon_client = TelegramClient("music_session", API_ID, API_HASH)
+# Telethon client
+api_id = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
+telethon_client = TelegramClient("music_session", api_id, api_hash)
 telethon_client.start()
 
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-AUDIO_TEMP_FILE = os.path.join(DOWNLOAD_DIR, "temp_song.mp3")
+# آیدی کانال عمومی موزیک
+MUSIC_CHANNEL = "soundcloudclub"  # بدون @
+
+DOWNLOADS_FOLDER = "downloads"
+os.makedirs(DOWNLOADS_FOLDER, exist_ok=True)
 
 @bot.message_handler(commands=["start"])
-def welcome(message):
-    bot.reply_to(message, "🎧 سلام! ویس یا ویدیو بفرست، یا اسم آهنگ یا خواننده رو تایپ کن تا موزیک کاملشو برات بیارم.")
+def handle_start(message):
+    bot.reply_to(message, "سلام! ویس، ویدیو یا اسم آهنگ رو بفرست تا پیداش کنم 🎵")
 
 @bot.message_handler(content_types=["voice", "video"])
-def handle_media(message):
+def handle_voice_or_video(message):
     try:
         file_id = message.voice.file_id if message.voice else message.video.file_id
         file_info = bot.get_file(file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
+        downloaded = bot.download_file(file_info.file_path)
 
-        input_file = os.path.join(DOWNLOAD_DIR, "input.mp3")
-        with open(input_file, "wb") as f:
-            f.write(downloaded_file)
+        input_path = os.path.join(DOWNLOADS_FOLDER, "input.mp3")
+        with open(input_path, "wb") as f:
+            f.write(downloaded)
 
-        with open(input_file, "rb") as f:
-            files = {'file': f}
+        with open(input_path, "rb") as f:
             data = {
-                'api_token': AUDD_API_KEY,
+                'api_token': audd_api_key,
                 'return': 'apple_music,spotify',
             }
-            response = requests.post("https://api.audd.io/", data=data, files=files)
+            response = requests.post("https://api.audd.io/", data=data, files={"file": f})
             result = response.json()
 
-        if not result.get("result") or not result["result"].get("title"):
-            bot.reply_to(message, "❌ متأسفم، نتونستم آهنگ رو شناسایی کنم.")
+        if not result.get("result"):
+            bot.reply_to(message, "متأسفم، نتونستم آهنگ رو شناسایی کنم ❌")
             return
 
-        song = result["result"]
-        title = song["title"]
-        artist = song["artist"]
-        search_query = f"{title} {artist}"
+        title = result["result"]["title"]
+        artist = result["result"]["artist"]
+        query = f"{title} {artist}"
 
-        # جستجو در کانال
-        music_file = search_music_in_channel(search_query)
-        if music_file:
-            with open(music_file, "rb") as f:
-                bot.send_audio(message.chat.id, f, caption=f"🎶 {title} - {artist}")
-            os.remove(music_file)
-        else:
-            song_link = song.get("song_link", "لینک: نداره")
-            bot.reply_to(message, f"🎧 آهنگ شناسایی شد: \n{title} - {artist}\n({song_link})")
-
-        os.remove(input_file)
+        send_song_from_channel(query, message.chat.id, f"🎶 {title} - {artist}")
 
     except Exception as e:
         bot.reply_to(message, f"خطا در پردازش: {e}")
 
 @bot.message_handler(content_types=["text"])
-def handle_text(message):
-    query = message.text.strip().lower()
+def handle_text_query(message):
+    query = message.text.strip()
     if not query:
-        bot.reply_to(message, "لطفاً اسم خواننده یا آهنگ رو بنویس 🎵")
+        bot.reply_to(message, "لطفاً اسم آهنگ یا خواننده رو بفرست.")
         return
 
-    bot.reply_to(message, "🔎 در حال جستجو در کانال موزیک...")
-
     try:
-        music_file = search_music_in_channel(query)
-        if music_file:
-            with open(music_file, "rb") as f:
-                bot.send_audio(message.chat.id, f, caption=f"🎶 نتیجه برای: {query}")
-            os.remove(music_file)
-        else:
-            bot.reply_to(message, "❌ متأسفم، آهنگی با این عنوان در کانال پیدا نشد.")
+        send_song_from_channel(query, message.chat.id, f"🔍 جستجو: {query}")
+    except Exception as e:
+        bot.reply_to(message, f"خطا: {e}")
+
+def send_song_from_channel(query, chat_id, caption):
+    try:
+        with telethon_client:
+            messages = telethon_client.iter_messages(MUSIC_CHANNEL, search=query, limit=10)
+            for msg in messages:
+                if msg.media and isinstance(msg.media, Document) and msg.file.mime_type == "audio/mpeg":
+                    file_path = os.path.join(DOWNLOADS_FOLDER, f"{msg.id}.mp3")
+                    telethon_client.download_media(msg, file_path)
+
+                    with open(file_path, "rb") as audio:
+                        bot.send_audio(chat_id, audio, caption=caption)
+                    os.remove(file_path)
+                    return
+
+        bot.send_message(chat_id, "آهنگ پیدا نشد ❌")
 
     except Exception as e:
-        bot.reply_to(message, f"خطا در جستجو: {e}")
-
-def search_music_in_channel(query):
-    try:
-        messages = telethon_client.iter_messages(
-            CHANNEL_USERNAME,
-            search=query,
-            filter=InputMessagesFilterMusic(),
-            limit=1
-        )
-
-        for msg in messages:
-            if msg.media:
-                return telethon_client.loop.run_until_complete(
-                    msg.download_media(file=DOWNLOAD_DIR)
-                )
-
-    except Exception as e:
-        print(f"خطا در جستجوی کانال: {e}")
-    return None
+        bot.send_message(chat_id, f"خطا در دریافت آهنگ: {e}")
 
 bot.infinity_polling()
