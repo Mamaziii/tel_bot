@@ -2,7 +2,6 @@ import os
 import requests
 import telebot
 from telethon.sync import TelegramClient
-from telethon.tl.functions.messages import Search
 from telethon.tl.types import InputMessagesFilterMusic
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
