@@ -10,7 +10,7 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 AUDD_API_KEY = os.getenv("AUDD_API_KEY")
-CHANNEL_USERNAME = os.getenv("soundcloudclub")  # مثلاً @YourMusicChannel
+CHANNEL_USERNAME = os.getenv("@bitrait_public")  # مثلاً @YourMusicChannel
 
 # فایل موقت برای ذخیره آهنگ
 AUDIO_TEMP_FILE = "downloads/temp_song.mp3"
