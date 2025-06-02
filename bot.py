@@ -92,20 +92,19 @@ def handle_text(message):
 
 def search_music_in_channel(query):
     try:
-        result = telethon_client.loop.run_until_complete(
-            telethon_client(Search(
-                peer=CHANNEL_USERNAME,
-                q=query,
-                filter=InputMessagesFilterMusic(),
-                limit=1
-            ))
+        messages = telethon_client.iter_messages(
+            CHANNEL_USERNAME,
+            search=query,
+            filter=InputMessagesFilterMusic(),
+            limit=1
         )
 
-        if result and result.messages:
-            msg = result.messages[0]
-            return telethon_client.loop.run_until_complete(
-                msg.download_media(file=DOWNLOAD_DIR)
-            )
+        for msg in messages:
+            if msg.media:
+                return telethon_client.loop.run_until_complete(
+                    msg.download_media(file=DOWNLOAD_DIR)
+                )
+
     except Exception as e:
         print(f"خطا در جستجوی کانال: {e}")
     return None
