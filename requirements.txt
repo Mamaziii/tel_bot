@@ -1,7 +1,3 @@
-telebot==0.0.5
-pyTelegramBotAPI
+telebot
+requests
 yt-dlp
-telethon==1.34.0
-aiofiles
-python-telegram-bot==13.7
-requests==2.26.0
