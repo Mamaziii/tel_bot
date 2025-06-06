@@ -8,7 +8,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 def search_odesli(query):
     try:
-        api_url = f"https://api.song.link/v1-alpha.1/links?userCountry=IR&songName={query}"
+        api_url = f"https://youtube.com/results?search_query={query}"
         response = requests.get(api_url)
         data = response.json()
 
