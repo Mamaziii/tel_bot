@@ -3,23 +3,21 @@ import requests
 import telebot
 import yt_dlp
 
-# متغیرهای محیطی از Railway یا محیط‌های دیگر
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def search_odesli(query):
     try:
-        url = f"https://api.song.link/v1-alpha.1/links?userCountry=IR&songName={query}"
-        response = requests.get(url)
+        api_url = f"https://api.song.link/v1-alpha.1/links?userCountry=IR&songName={query}"
+        response = requests.get(api_url)
         data = response.json()
 
-        youtube_link = data["linksByPlatform"].get("youtube", {}).get("url")
-        title = data.get("entitiesByUniqueId", {}).get(
-            data.get("entityUniqueId", ""), {}).get("title", query)
-        return youtube_link, title
+        youtube_url = data["linksByPlatform"].get("youtube", {}).get("url")
+        title = data.get("entitiesByUniqueId", {}).get(data.get("entityUniqueId", ""), {}).get("title", query)
+
+        return youtube_url, title
     except Exception as e:
-        print(f"Odesli error: {e}")
+        print(f"[ODESLI ERROR] {e}")
         return None, None
 
 def download_mp3_from_youtube(youtube_url, title):
@@ -40,22 +38,21 @@ def download_mp3_from_youtube(youtube_url, title):
             ydl.download([youtube_url])
         return filename
     except Exception as e:
-        print(f"Download error: {e}")
+        print(f"[YT_DOWNLOAD ERROR] {e}")
         return None
 
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "سلام! فقط اسم آهنگ رو بفرست 🎵")
+def welcome(message):
+    bot.reply_to(message, "سلام! فقط اسم آهنگ یا خواننده رو بفرست 🎶 تا فایل MP3 بگیری 🎧")
 
 @bot.message_handler(content_types=['text'])
-def handle_query(message):
+def handle_text(message):
     query = message.text.strip()
-    msg = bot.reply_to(message, "🔎 در حال جستجو در Odesli...")
+    msg = bot.reply_to(message, "🔍 در حال جستجو در Odesli...")
 
     youtube_url, title = search_odesli(query)
-
     if not youtube_url:
-        bot.edit_message_text("❌ آهنگ پیدا نشد.", msg.chat.id, msg.message_id)
+        bot.edit_message_text("❌ آهنگی پیدا نشد.", msg.chat.id, msg.message_id)
         return
 
     bot.edit_message_text("⬇️ در حال دانلود از یوتیوب...", msg.chat.id, msg.message_id)
@@ -65,9 +62,13 @@ def handle_query(message):
         bot.send_message(message.chat.id, "❌ مشکلی در دانلود فایل پیش آمد.")
         return
 
-    with open(filename, "rb") as audio:
-        bot.send_audio(message.chat.id, audio, caption=f"{title} 🎧")
-
-    os.remove(filename)
+    try:
+        with open(filename, "rb") as audio:
+            bot.send_audio(message.chat.id, audio, caption=f"{title} 🎧")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ ارسال فایل شکست خورد. خطا: {e}")
+    finally:
+        if os.path.exists(filename):
+            os.remove(filename)
 
 bot.infinity_polling()
