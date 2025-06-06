@@ -1,10 +1,5 @@
-FROM python:3.10-slim
-
-RUN apt update && apt install -y ffmpeg curl && apt clean
-
+FROM python:3.9
 WORKDIR /app
-COPY . /app
-
-RUN pip install --no-cache-dir -r requirements.txt
-
+COPY . .
+RUN pip install -r requirements.txt
 CMD ["python", "bot.py"]
