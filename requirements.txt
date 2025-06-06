@@ -1,3 +1,3 @@
-telebot
+pyTelegramBotAPI==4.12.0
+yt-dlp==2024.5.27
 requests
-yt-dlp
