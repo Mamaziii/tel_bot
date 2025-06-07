@@ -1,0 +1,26 @@
+# فایل‌های محیطی
+.env
+.env.*
+*.env
+
+# فایل‌های session تلگرام
+*.session
+*.session-journal
+
+# فایل‌های موقتی
+*.mp3
+*.wav
+*.webm
+*.mp4
+downloads/
+
+# کش پایتون
+__pycache__/
+*.pyc
+
+# لاگ‌ها
+*.log
+
+# IDE
+.vscode/
+.idea/
