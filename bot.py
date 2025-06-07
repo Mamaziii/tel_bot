@@ -9,15 +9,16 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def search_youtube(query):
+    videosSearch = VideosSearch(query, limit=1)
+    result = videosSearch.result()
     try:
-        results = YoutubeSearch(query, max_results=1).to_dict()
-        if results:
-            url_suffix = results[0]["url_suffix"]
-            title = results[0]["title"]
-            return f"https://www.youtube.com{url_suffix}", title
+        url = result['result'][0]['link']
+        title = result['result'][0]['title']
+        return url, title
     except Exception as e:
-        print(f"❌ YouTube search error: {e}")
-    return None, None
+        print("❌ YouTube search error:", e)
+        return None, None
+
 
 def download_mp3(youtube_url, title):
     ydl_opts = {
