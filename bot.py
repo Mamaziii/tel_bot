@@ -3,7 +3,7 @@ import requests
 import telebot
 import yt_dlp
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from youtube_search import YoutubeSearch
+from youtubesearchpython import VideosSearch
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
