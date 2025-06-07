@@ -1,2 +1,4 @@
-pyTelegramBotAPI
-yt-dlp
+python-telegram-bot==13.7
+yt-dlp==2023.7.6
+requests==2.31.0
+ffmpeg-python==0.2.0
