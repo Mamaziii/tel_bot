@@ -1,3 +1,4 @@
+import os
 import telebot
 from youtubesearchpython import VideosSearch
 import requests
