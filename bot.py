@@ -58,6 +58,8 @@ def send_welcome(message):
 
 @bot.message_handler(content_types=['text'])
 def on_text(message):
+    import subprocess
+    subprocess.run(["yt-dlp", "--extract-audio", "--audio-format", "mp3", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"], check=True)
     query = message.text.strip()
     msg = bot.reply_to(message, "🔎 در حال جستجو در یوتیوب...")
 
@@ -68,6 +70,8 @@ def on_text(message):
 
     bot.edit_message_text("⬇️ در حال دانلود فایل MP3...", msg.chat.id, msg.message_id)
     filename = download_mp3(youtube_url, title)
+    print(f"📎 YouTube URL: {youtube_url}")
+    print(f"🎵 File name: {filename}")
 
     if not filename:
         bot.send_message(message.chat.id, "❌ مشکلی در دانلود آهنگ پیش اومد.")
