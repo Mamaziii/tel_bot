@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # 🔐 توکن ربات خودت رو اینجا بذار
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # 🎯 تابع جستجوی ویدیو در یوتیوب
