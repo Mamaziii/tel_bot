@@ -1,8 +1,11 @@
 import os
+import logging
 import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
+
+logging.basicConfig(level=logging.DEBUG)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
