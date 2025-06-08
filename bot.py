@@ -9,21 +9,21 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 ### 🔎 جست‌وجو در song.link با استفاده از API رسمی
 def search_song_link(query):
-    url = f"https://api.song.link/v1-alpha.1/links?userCountry=IR&songName={query}"
-    res = requests.get(url)
+    parts = [p.strip() for p in re.split(r'[-–]', query)]
+    params = {'userCountry': 'IR'}
+
+    if len(parts) >= 2:
+        params['songName'] = parts[0]
+        params['artistName'] = parts[1]
+    else:
+        params['songName'] = query
+
+    res = requests.get("https://api.song.link/v1-alpha.1/links", params=params)
     if res.status_code == 200:
         data = res.json()
-        results = []
-        for _, ent in data.get("entitiesByUniqueId", {}).items():
-            results.append({
-                "id": _,
-                "title": ent.get("title"),
-                "artist": ent.get("artistName"),
-                "songUrl": ent.get("url"),
-                "youtubeUrl": data["linksByPlatform"].get("youtube", {}).get("url")
-            })
-        return results
-    return []
+        return data  # کل داده برای استفاده بعدی
+    return None
+
 
 ### 🎵 دانلود MP3 از یوتیوب با yt-dlp
 def download_mp3_from_youtube(youtube_url, title):
