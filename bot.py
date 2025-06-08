@@ -14,21 +14,38 @@ bot = telebot.TeleBot(BOT_TOKEN)
 ### 🔎 جست‌وجو در song.link با استفاده از API رسمی
 import urllib.parse
 
-def search_song_link(query):
-    base_url = "https://api.song.link/v1-alpha.1/links"
-    encoded_query = urllib.parse.quote(query)
-    url = f"{base_url}?url={encoded_query}&userCountry=IR"
-    
+def search_youtube(query):
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            song_link = data.get("pageUrl")
-            return song_link
+        results = YoutubeSearch(query, max_results=1).to_dict()
+        if results:
+            url_suffix = results[0]["url_suffix"]
+            title = results[0]["title"]
+            return f"https://www.youtube.com{url_suffix}", title
     except Exception as e:
-        print(f"Error fetching song link: {e}")
-    
-    return None
+        print(f"❌ YouTube search error: {e}")
+    return None, None
+
+def download_mp3(youtube_url, title):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': '%(title)s.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(youtube_url, download=True)
+            filename = ydl.prepare_filename(info_dict).replace(".webm", ".mp3").replace(".m4a", ".mp3")
+        return filename
+    except Exception as e:
+        print(f"❌ Download error: {e}")
+        return None
+
 
 
 
