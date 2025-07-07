@@ -1,0 +1,54 @@
+# ✅ فایل‌های پایتون
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# ✅ محیط مجازی (اگر داشته باشی)
+venv/
+env/
+ENV/
+.venv/
+.idea/
+
+# ✅ فایل‌های سیستم‌عامل
+.DS_Store
+Thumbs.db
+
+# ✅ لاگ‌ها و فایل‌های موقتی
+*.log
+*.tmp
+*.swp
+*.bak
+
+# ✅ فایل‌های محیطی و توکن‌ها
+.env
+.env.local
+.env.*.local
+
+# ✅ فایل‌های خروجی yt_dlp یا mp3 دانلود شده
+*.mp3
+*.webm
+*.m4a
+*.part
+*.temp
+
+# ✅ فایل‌های دیتای کش‌شده
+*.db
+*.sqlite
+*.sqlite3
+
+# ✅ داکر (اگر استفاده کنی)
+docker-compose.override.yml
+
+# ✅ Jupyter یا نوت‌بوک‌ها
+.ipynb_checkpoints/
+
+# ✅ VS Code / PyCharm
+.vscode/
+.idea/
+
+# ✅ ریپوی Git خودش
+.git/
