@@ -6,6 +6,11 @@ from youtubesearchpython import VideosSearch
 import uuid
 import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import sys
+
+print("🧪 Imported modules:")
+for name in sorted(sys.modules.keys()):
+    print(name)
 #from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO)
