@@ -4,8 +4,3 @@ yt_dlp==2025.06.30
 youtube-search-python==1.6.6
 requests
 python-dotenv
-youtube-search-python
-flask
-lyricsgenius==3.0.1
-genius
-beautifulsoup4
