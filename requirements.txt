@@ -1,3 +1,11 @@
-pyTelegramBotAPI>=4.12.0
-yt-dlp
+httpx==0.23.0
+pyTelegramBotAPI==4.14.0
+yt_dlp
+youtube-search-python==1.6.6
 requests
+python-dotenv
+youtube-search-python
+flask
+lyricsgenius==3.0.1
+genius
+beautifulsoup4
