@@ -6,7 +6,7 @@ from youtubesearchpython import VideosSearch
 import uuid
 import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO)
 
