@@ -1,118 +1,137 @@
 import os
 import logging
-import re
-import requests
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
+from youtubesearchpython import VideosSearch
+import uuid
+import requests
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from bs4 import BeautifulSoup
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN not found in environment variables!")
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
-### 🔎 جست‌وجو در song.link با استفاده از API رسمی
-import urllib.parse
+# کش جستجو و متن آهنگ
+search_cache = {}
+lyrics_cache = {}
 
-def search_youtube(query):
-    try:
-        results = YoutubeSearch(query, max_results=1).to_dict()
-        if results:
-            url_suffix = results[0]["url_suffix"]
-            title = results[0]["title"]
-            return f"https://www.youtube.com{url_suffix}", title
-    except Exception as e:
-        print(f"❌ YouTube search error: {e}")
-    return None, None
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "سلام! 🎧 اسم خواننده یا آهنگ رو بفرست تا لیست آهنگ‌ها رو ببینی.")
 
-def download_mp3(youtube_url, title):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': '%(title)s.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(youtube_url, download=True)
-            filename = ydl.prepare_filename(info_dict).replace(".webm", ".mp3").replace(".m4a", ".mp3")
-        return filename
-    except Exception as e:
-        print(f"❌ Download error: {e}")
-        return None
-
-
-
-
-### 🎵 دانلود MP3 از یوتیوب با yt-dlp
-def download_mp3_from_youtube(youtube_url, title):
-    safe_title = "".join(c for c in title if c.isalnum() or c in " _-").rstrip()
-    filename = f"{safe_title}.mp3"
-    opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': filename,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True,
-        'no_warnings': True
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(youtube_url, download=True)
-        filename = ydl.prepare_filename(info).replace(".webm", ".mp3").replace(".m4a", ".mp3")
-    return filename
-
-### ⚙️ شروع و پردازش پیام‌ها
-@bot.message_handler(commands=["start"])
-def cmd_start(msg):
-    bot.reply_to(msg, "✨ سلام! اسمی از آهنگ یا خواننده بفرست تا برات لیست 5 آهنگ پیشنهادی بیارم.")
-
-@bot.message_handler(func=lambda m: True)
-def on_text(msg):
-    query = msg.text.strip()
-    arr = search_song_link(query)
-    if not arr:
-        bot.reply_to(msg, "❌ آهنگی پیدا نشد.")
+@bot.message_handler(func=lambda message: True)
+def handle_song_request(message):
+    query = message.text.strip()
+    if not query:
+        bot.reply_to(message, "❌ لطفاً اسم آهنگ یا خواننده رو وارد کن.")
         return
-    
-    kb = InlineKeyboardMarkup()
-    for song in arr[:5]:
-        kb.add(InlineKeyboardButton(
-            text=f"{song['title']} – {song['artist']}",
-            callback_data=f"DL|{song['id']}"
-        ))
-    bot.send_message(msg.chat.id, "لطفاً از بین آهنگ‌ها انتخاب کن:", reply_markup=kb)
 
-@bot.callback_query_handler(lambda cb: cb.data.startswith("DL|"))
-def on_select(cb):
-    song_id = cb.data.split("|")[1]
-    # مجدد درخواست برای اطلاعات کامل آهنگ
-    data = requests.get(f"https://api.song.link/v1-alpha.1/links?userCountry=IR&entityUniqueId={song_id}").json()
-    entity = data["entitiesByUniqueId"][song_id]
-    yt_url = data["linksByPlatform"].get("youtube", {}).get("url")
-    title = entity["title"] + " – " + entity["artistName"]
-    info_url = data.get("pageUrl")
-
-    bot.edit_message_text(chat_id=cb.message.chat.id, message_id=cb.message.message_id,
-                          text=f"در حال دانلود {title}...")
+    bot.send_message(message.chat.id, "🔍 در حال جستجو در یوتیوب...")
 
     try:
-        file = download_mp3_from_youtube(yt_url, title)
-        kb = InlineKeyboardMarkup()
-        if info_url:
-            kb.add(InlineKeyboardButton(text="ℹ️ Info", url=info_url))
-        with open(file, "rb") as f:
-            bot.send_audio(cb.message.chat.id, f, caption=title, reply_markup=kb)
-        os.remove(file)
-    except Exception as e:
-        bot.send_message(cb.message.chat.id, "❌ مشکلی در دانلود آهنگ پیش آمد.")
+        search = VideosSearch(query, limit=10)
+        results = search.result().get('result', [])
+        if not results:
+            bot.send_message(message.chat.id, "❌ آهنگی پیدا نشد.")
+            return
 
-if __name__ == "__main__":
-    bot.infinity_polling()
+        search_cache[str(message.chat.id)] = search
+
+        markup = InlineKeyboardMarkup()
+        for video in results:
+            title = video['title']
+            url = video['link']
+            markup.add(InlineKeyboardButton(title[:40], callback_data=f"play|{url}"))
+
+        markup.add(InlineKeyboardButton("🎵 آهنگ‌های بیشتر", callback_data="more"))
+        bot.send_message(message.chat.id, "🎶 آهنگ مورد نظر رو انتخاب کن:", reply_markup=markup)
+
+    except Exception as e:
+        logging.exception("Search error")
+        bot.send_message(message.chat.id, f"❌ خطا در جستجو: {str(e)}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "more")
+def handle_more_results(call):
+    chat_id = str(call.message.chat.id)
+    if chat_id not in search_cache:
+        bot.answer_callback_query(call.id, "⛔ جستجو پیدا نشد.")
+        return
+
+    search = search_cache[chat_id]
+    try:
+        search.next()
+        results = search.result().get('result', [])
+        markup = InlineKeyboardMarkup()
+
+        for video in results:
+            title = video['title']
+            url = video['link']
+            markup.add(InlineKeyboardButton(title[:40], callback_data=f"play|{url}"))
+
+        markup.add(InlineKeyboardButton("🎵 آهنگ‌های بیشتر", callback_data="more"))
+        bot.edit_message_text("🎶 ادامه آهنگ‌ها:", chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
+
+    except Exception as e:
+        logging.exception("Pagination error")
+        bot.answer_callback_query(call.id, "❌ خطا در دریافت ادامه آهنگ‌ها.")
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("play|"))
+def download_selected_song(call):
+    video_url = call.data.split("|")[1]
+    msg = bot.send_message(call.message.chat.id, "⬇️ در حال دانلود MP3...")
+
+    try:
+        filename = f"{uuid.uuid4()}.%(ext)s"
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': filename,
+            'quiet': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_url, download=False)
+            title = info_dict.get("title", "audio")
+            ydl.download([video_url])
+
+        mp3_file = filename.replace('%(ext)s', 'mp3')
+        if not os.path.exists(mp3_file):
+            bot.edit_message_text("❌ فایل پیدا نشد.", chat_id=call.message.chat.id, message_id=msg.message_id)
+            return
+
+        with open(mp3_file, 'rb') as f:
+            bot.send_audio(
+                call.message.chat.id,
+                f,
+                title=title,
+                caption=f"{title}\n🎧 Powered by @mosicrobot"
+            )
+
+        unique_id = str(uuid.uuid4())
+        lyrics_cache[unique_id] = title
+
+        lyrics_markup = InlineKeyboardMarkup()
+        lyrics_markup.add(InlineKeyboardButton("📃 متن آهنگ", callback_data=f"lyrics|{unique_id}"))
+        bot.send_message(call.message.chat.id, "برای دیدن متن آهنگ روی دکمه زیر کلیک کن:", reply_markup=lyrics_markup)
+
+        os.remove(mp3_file)
+        bot.delete_message(call.message.chat.id, msg.message_id)
+
+    except Exception as e:
+        logging.exception("Download error")
+        bot.edit_message_text(f"❌ خطا در دانلود: {str(e)}", chat_id=call.message.chat.id, message_id=msg.message_id)
+
+
+# اجرای ربات
+bot.infinity_polling()
