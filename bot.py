@@ -1,7 +1,7 @@
 import os
 import logging
 import telebot
-import yt_dlp
+#import yt_dlp
 from youtubesearchpython import VideosSearch
 import uuid
 import requests
