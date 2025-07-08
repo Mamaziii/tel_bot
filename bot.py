@@ -91,8 +91,10 @@ def download_selected_song(call):
         filename = f"{uuid.uuid4()}.%(ext)s"
         ydl_opts = {
             'format': 'bestaudio/best',
-            'outtmpl': filename,
             'quiet': True,
+            'geo_bypass': True,
+            'nocheckcertificate': True,
+            'outtmpl': f'{uuid.uuid4()}.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
